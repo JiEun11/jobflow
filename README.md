@@ -2,7 +2,7 @@
 
 A self-hosted job-search workspace for discovering opportunities, reviewing visa sponsorship evidence, preparing grounded application documents, and tracking applications from email.
 
-**Status: design phase.** This repository currently contains a proposed architecture and product specification. There is no runnable application, installed dependency set, connected mailbox, active schedule, or released package. Documentation approval does not imply implementation approval.
+**Status: local Phase 1.** The app supports single-owner sign-in, a recoverable career profile, private PDFs, and a dashboard.
 
 ## What Jobflow is intended to do
 
@@ -114,19 +114,7 @@ jobflow/
 
 ## Development and setup status
 
-There are no install, development, migration, or test commands to run yet. A package manifest, lockfile, workspace definition, environment template, and container configuration will be added only after architecture approval.
-
-The intended contributor experience is:
-
-1. Clone the repository and open its root in an IDE.
-2. Install the pinned Node.js LTS and pnpm versions documented by the future scaffold.
-3. Start a local PostgreSQL instance using the provided container configuration or an existing compatible installation.
-4. Choose a private data directory outside the checkout and initialize the owner account and runtime encryption key.
-5. Apply committed database migrations and start the web and worker processes.
-6. Explore an explicit synthetic demo mode before connecting a real account.
-7. Configure only the providers needed for the selected workflow.
-
-The future setup guide must include one documented command for starting the development processes and one container-based self-hosting path. These are acceptance requirements, not available commands.
+See the [Phase 1 local runbook](docs/planning/phase1-local.md) for installation, migrations, owner setup, and tests. The worker and scheduled collection are planned for Phase 2.
 
 ### Planned configuration categories
 
@@ -141,12 +129,12 @@ The future setup guide must include one documented command for starting the deve
 
 ## Contributing and open-source release
 
-During the design phase, contributions should improve requirements, architecture consistency, accessibility, or proposed acceptance criteria. Implementation work starts after the design review gate.
+Contributions should preserve the local single-owner boundary and validate changes against the documented setup.
 
 Use synthetic fixtures for examples, screenshots, tests, and issue reports. Do not attach real resumes, mailbox exports, credentials, or generated personal application packages. A later contribution guide will describe code checks, migration review, and pull-request expectations.
 
 **License: pending owner selection.** No license has been chosen by this proposal. License selection, dependency review, a contribution guide, a security-reporting process, and a verified installation walkthrough are required before an open-source release is announced.
 
-## Review before implementation
+## Review before the next phase
 
-The next approval concerns the proposed architecture and first implementation slice. It does not enable account access, a schedule, publication, or automatic application submission. See [open decisions](docs/planning/implementation-plan.md#3-decisions-required-before-their-dependent-slice) for the remaining product choices.
+The next approval concerns discovery and scheduled collection. It does not enable account access, a schedule, publication, or automatic application submission. See [open decisions](docs/planning/implementation-plan.md#3-decisions-required-before-their-dependent-slice) for the remaining product choices.

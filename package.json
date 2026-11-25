@@ -1,0 +1,25 @@
+{
+  "name": "jobflow",
+  "private": true,
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": "26.13.1"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @jobflow/web dev",
+    "build": "pnpm --filter @jobflow/web build",
+    "start": "pnpm --filter @jobflow/web start",
+    "lint": "eslint .",
+    "typecheck": "pnpm --filter @jobflow/web typecheck",
+    "db:generate": "pnpm --filter @jobflow/db generate",
+    "db:migrate": "pnpm --filter @jobflow/db migrate",
+    "owner:init": "pnpm --filter @jobflow/web owner:init",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.6",
+    "typescript": "6.0.3",
+    "playwright": "1.65.1"
+  }
+}

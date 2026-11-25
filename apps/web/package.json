@@ -1,0 +1,31 @@
+{
+  "name": "@jobflow/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "next typegen && tsc --noEmit",
+    "owner:init": "node --env-file-if-exists=../../.env --disable-warning=ExperimentalWarning scripts/owner-init.ts"
+  },
+  "dependencies": {
+    "@jobflow/db": "workspace:*",
+    "@jobflow/core": "workspace:*",
+    "better-auth": "1.7.27",
+    "drizzle-orm": "0.45.4",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "pdf-lib": "1.17.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.5",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "postcss": "8.5.33",
+    "tailwindcss": "4.3.5",
+    "typescript": "6.0.3"
+  }
+}

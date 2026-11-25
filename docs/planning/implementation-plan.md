@@ -4,7 +4,7 @@
 
 ## 1. Current boundary
 
-The authorized deliverable is an English documentation set and a detailed README. No application source, package installation, OAuth connection, schedule, deployment, Git commit, or Git push is part of this documentation task.
+The approved Phase 1 app provides single-owner authentication, versioned career profiles, private PDF uploads, and a dashboard. The [local runbook](phase1-local.md) documents setup and verification. External integrations, live schedules, deployment, and publication require separate approval.
 
 All proposed architecture decisions remain open for review. This plan is ordered by working product slices, rather than creating every package and empty feature folder at once.
 
@@ -13,7 +13,7 @@ All proposed architecture decisions remain open for review. This plan is ordered
 | Slice | Scope | Evidence required to complete it |
 | --- | --- | --- |
 | D0 — Design review | Requirements, experience, architecture, data model, privacy, ADRs | Owner reviews the proposed direction and confirms the first implementation scope |
-| D1 — Foundation and synthetic vertical slice | Pinned workspace, Next.js app, worker entry, PostgreSQL migrations, owner/session bootstrap, contracts, synthetic demo | A contributor can start the system; an authorized page reads a synthetic record; an action persists a change; an outbox request survives a restart and completes in the worker |
+| D1 — Phase 1 local foundation | Local web app, PostgreSQL, owner session, versioned profile, private PDF, dashboard | Verify the owner, profile, and PDF workflows with synthetic data |
 | D2 — Career facts and manual JD | Supported resume import, review/confirm facts, immutable profile/JD versions, source provenance | A synthetic candidate can correct extraction; unconfirmed facts cannot silently become evidence; a changed JD preserves the previous snapshot |
 | D3 — Analysis and document review | One chosen AI adapter, requirement mapping, scoped visa evidence, editable document draft and optional cover letter | Unsupported claims enter review; schema/fact checks run independently of model text; regenerating preserves earlier edits and inputs |
 | D4 — Exports and application records | Verified PDF/DOCX renderers, document approval/version history, explicit submitted package, application timeline | Export text and visual layout pass QA; the file recorded as submitted remains identifiable after regeneration |
@@ -21,7 +21,7 @@ All proposed architecture decisions remain open for review. This plan is ordered
 | D6 — Mail-driven tracking | One selected read-only mailbox adapter, incremental sync, message deduplication, event matching and review | Two roles at one company remain distinct; ambiguous and older events cannot overwrite a user correction; revoked consent stops only the affected integration |
 | D7 — Self-hosting and open-source readiness | Container path, backup/restore, retention/delete/export, setup documentation, licensing and contributor materials | A fresh setup and a restore drill succeed; public artifacts contain synthetic data only; owner approves release readiness |
 
-D1 must include a real durable task using synthetic data before AI or mailbox work. This tests the architectural seam early without waiting for private credentials. D3 can be designed with a deterministic fake adapter for tests; the UI must clearly state when a real AI provider is unavailable and must never show fake live results.
+Phase 2 must prove a real durable task using synthetic data before scheduled collection, AI, or mailbox work. This tests the architectural seam early without waiting for private credentials. D3 can be designed with a deterministic fake adapter for tests; the UI must clearly state when a real AI provider is unavailable and must never show fake live results.
 
 ## 3. Decisions required before their dependent slice
 

@@ -1,0 +1,24 @@
+{
+  "name": "@jobflow/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schema": "./src/schema.ts",
+    "./client": "./src/client.ts",
+    "./profile": "./src/profile.ts",
+    "./resumes": "./src/resumes.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "node --env-file-if-exists=../../.env src/migrate.ts"
+  },
+  "dependencies": {
+    "@jobflow/core": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.11",
+    "@types/pg": "8.23.1"
+  }
+}

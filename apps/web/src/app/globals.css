@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #172a42;
+  --color-muted: #53647c;
+  --color-line: #dbe3ed;
+  --color-accent: #1749aa;
+}
+@layer base {
+  body { @apply bg-slate-50 text-ink antialiased; }
+  label { @apply grid gap-1.5 text-sm font-medium; }
+  input:not([type=checkbox]), textarea, select {
+    @apply min-w-0 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base;
+  }
+  input[type=checkbox] { @apply size-4 accent-accent; }
+  textarea { @apply min-h-24; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-accent; }
+  h1 { @apply text-3xl font-semibold tracking-tight sm:text-4xl; }
+  h2 { @apply text-xl font-semibold tracking-tight; }
+  h3 { @apply font-semibold; }
+}
+@layer components {
+  .panel { @apply min-w-0 rounded-2xl border border-line bg-white p-5 sm:p-6; }
+  .button { @apply inline-flex w-fit items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60; }
+  .secondary { @apply inline-flex w-fit items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60; }
+  .danger { @apply w-fit text-sm font-semibold text-red-700 underline underline-offset-2 disabled:opacity-60; }
+  .text-link { @apply font-semibold text-accent underline underline-offset-2; }
+  .message { @apply rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900; }
+}
