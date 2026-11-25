@@ -1,0 +1,47 @@
+name: Jobflow collector
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      seoul_date:
+        description: 'Optional missed Seoul date (YYYY-MM-DD). Collects the current inventory.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobflow-collector
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: >-
+      github.ref == 'refs/heads/main' && vars.JOBFLOW_COLLECTOR_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' || vars.JOBFLOW_COLLECTOR_SCHEDULE_ENABLED == 'true')
+    runs-on: ubuntu-26.04
+    environment: phase2a-collector
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Install pinned dependencies
+        run: |
+          npm install --global "$(node -p 'require("./package.json").packageManager')"
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Collect approved Greenhouse boards
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JOBFLOW_COLLECTOR_ENABLED: ${{ vars.JOBFLOW_COLLECTOR_ENABLED }}
+          JOBFLOW_GREENHOUSE_BOARDS: ${{ vars.JOBFLOW_GREENHOUSE_BOARDS }}
+          JOBFLOW_COLLECTION_TRIGGER: ${{ github.event_name == 'schedule' && 'schedule' || 'manual' }}
+          JOBFLOW_COLLECTION_DATE: ${{ inputs.seoul_date }}
+        run: pnpm collect

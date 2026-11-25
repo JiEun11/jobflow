@@ -1,6 +1,6 @@
 # ADR 0001: Use TypeScript and Next.js with explicit feature boundaries
 
-- **Status:** Proposed
+- **Status:** Accepted for Phase 1
 - **Date:** 2026-11-05
 
 ## Context
@@ -26,7 +26,7 @@ Keep the domain/application core framework-independent. Next.js entry points ada
 
 Shared TypeScript contracts reduce accidental drift, but static types do not validate remote input or authorize a request. Server/client import boundaries must be enforced, and runtime schemas are still required. Document parsing or rendering may later justify an isolated external process; that should follow a demonstrated need, not restore a second backend by default.
 
-The decision is accepted only after owner review. Exact stable versions and patches are pinned during the approved scaffold, with the source references checked again.
+The workspace manifests and lockfile pin the Phase 1 versions. Recheck compatibility and security advisories when changing versions.
 
 ## References
 
