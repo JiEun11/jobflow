@@ -4,6 +4,8 @@
 
 A loopback-only Next.js App Router app serves the dashboard, editor, and authenticated route handlers. Better Auth provides sessions. PostgreSQL stores application records. Drizzle owns the application schema and migrations. A private filesystem directory outside the checkout stores PDF bytes.
 
+The Phase 2A implementation adds a Vercel production mode with HTTPS and Neon PostgreSQL 18. Preview access and cloud PDF storage are disabled. A bounded GitHub Actions CLI invocation replaces the proposed long-running worker for initial Greenhouse discovery. The [cloud runbook](../planning/phase2a-cloud.md) records the independent migration, deployment and activation gates.
+
 | Location | Responsibility |
 | --- | --- |
 | `apps/web/src/app` | Server-rendered pages and HTTP entry points |

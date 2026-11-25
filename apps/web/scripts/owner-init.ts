@@ -5,6 +5,7 @@ import { hashPassword } from 'better-auth/crypto'
 import { sql } from 'drizzle-orm'
 import { connectDatabase } from '@jobflow/db/client'
 import { account, owner, user } from '@jobflow/db/schema'
+import { isNeonUrl, neonConnectionString } from '@jobflow/db/neon'
 
 let hide = false
 const output = new Writable({
@@ -14,6 +15,9 @@ const output = new Writable({
   },
 })
 const terminal = Boolean(process.stdin.isTTY && process.stderr.isTTY)
+const cloud = process.argv.includes('--cloud')
+if (!cloud && isNeonUrl(process.env.DATABASE_URL)) throw new Error('Use the approved cloud owner setup command.')
+if (cloud && !terminal) throw new Error('Cloud owner setup requires an interactive terminal.')
 const input = createInterface({ input: process.stdin, output, terminal })
 const lines = input[Symbol.asyncIterator]()
 
@@ -36,7 +40,9 @@ try {
     throw new Error('Enter a valid email and a password of 14–128 characters.')
   }
   const hashedPassword = await hashPassword(password)
-  connection = connectDatabase()
+  connection = cloud
+    ? connectDatabase(neonConnectionString(process.env.JOBFLOW_ADMIN_DATABASE_URL, 'direct'), 1)
+    : connectDatabase()
   const created = await connection.db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(368092585027)`)
     const [existing] = await tx.select({ slot: owner.slot }).from(owner).limit(1)

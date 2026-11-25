@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { mkdtemp, mkdir, readFile, readdir, rename, rm } from 'node:fs/promises'
+import { copyFile, mkdtemp, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -10,11 +10,15 @@ import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
 import { chromium } from 'playwright'
+import { connectDatabase } from '../packages/db/src/client.ts'
+import { collect } from '../packages/db/src/collector.ts'
 
 const web = resolve('apps/web')
 const db = resolve('packages/db')
 const webRequire = createRequire(join(web, 'package.json'))
 const { PDFDocument } = webRequire('pdf-lib')
+const dbRequire = createRequire(join(db, 'package.json'))
+const { migrate: applyMigrations } = dbRequire('drizzle-orm/node-postgres/migrator')
 const pgBin = process.env.JOBFLOW_TEST_PG_BIN ?? ''
 const email = 'synthetic@example.test'
 const password = 'synthetic-' + randomBytes(24).toString('hex')
@@ -39,7 +43,7 @@ async function stop(child) {
   await closed
 }
 
-test('Phase 1 against a fresh local PostgreSQL and the production server', { timeout: 90_000 }, async (t) => {
+test('Jobflow against a fresh local PostgreSQL and the production server', { timeout: 90_000 }, async (t) => {
   const temp = await mkdtemp(join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'jf-'))
   const data = join(temp, 'postgres')
   const socket = join(temp, 'socket')
@@ -61,9 +65,9 @@ test('Phase 1 against a fresh local PostgreSQL and the production server', { tim
   let resume
   let bytes
 
-  async function startApp() {
+  async function startApp(overrides = {}) {
     app = spawn(process.execPath, [webRequire.resolve('next/dist/bin/next'), 'start',
-      '--hostname', '127.0.0.1', '--port', String(port)], { cwd: web, env })
+      '--hostname', '127.0.0.1', '--port', String(port)], { cwd: web, env: { ...env, ...overrides } })
     app.stdout.on('data', (chunk) => { serverLog += chunk })
     app.stderr.on('data', (chunk) => { serverLog += chunk })
     for (let attempt = 0; attempt < 60; attempt++) {
@@ -88,8 +92,8 @@ test('Phase 1 against a fresh local PostgreSQL and the production server', { tim
     }).catch((cause) => { throw new Error('HTTP request failed: ' + (rest.method ?? 'GET') + ' ' + path, { cause }) })
   }
 
-  function sql(text) {
-    return postgres('psql', ['-XAt', '-v', 'ON_ERROR_STOP=1', '-h', socket, '-U', 'jobflow_test', '-d', 'postgres', '-c', text]).trim()
+  function sql(text, role = 'jobflow_test') {
+    return postgres('psql', ['-XAt', '-v', 'ON_ERROR_STOP=1', '-h', socket, '-U', role, '-d', 'postgres', '-c', text]).trim()
   }
 
   async function expectStatus(response, status) {
@@ -121,8 +125,23 @@ test('Phase 1 against a fresh local PostgreSQL and the production server', { tim
       "-c listen_addresses='' -c unix_socket_directories='" + socket + "'", '-w', 'start'])
     pgStarted = true
     const migrate = () => execFileSync(process.execPath, ['src/migrate.ts'], { cwd: db, env, encoding: 'utf8' })
+    const baseline = join(temp, 'phase1-migrations')
+    const journal = JSON.parse(await readFile(join(db, 'migrations/meta/_journal.json'), 'utf8'))
+    const first = journal.entries[0]
+    await mkdir(join(baseline, 'meta'), { recursive: true })
+    await copyFile(join(db, 'migrations', first.tag + '.sql'), join(baseline, first.tag + '.sql'))
+    await writeFile(join(baseline, 'meta/_journal.json'), JSON.stringify({ ...journal, entries: [first] }))
+    const admin = connectDatabase(env.DATABASE_URL)
+    try {
+      await applyMigrations(admin.db, { migrationsFolder: baseline })
+    } finally {
+      await admin.pool.end()
+    }
+    sql("insert into public.auth_user (id,name,email) values ('migration-fixture','Fixture','migration@example.test')")
     migrate()
     migrate()
+    assert.equal(sql("select count(*) from public.auth_user where id = 'migration-fixture'"), '1')
+    sql("delete from public.auth_user where id = 'migration-fixture'")
     await startApp()
 
     await t.test('anonymous requests and HTTP signup are blocked on an empty database', async () => {
@@ -273,6 +292,7 @@ test('Phase 1 against a fresh local PostgreSQL and the production server', { tim
       assert.ok(!serverLog.includes(password) && !serverLog.includes(email) && !serverLog.includes('경력.pdf'))
     })
     await t.test('desktop and mobile complete the real browser workflow', async () => {
+      sql('delete from public.auth_rate_limit')
       const browser = await chromium.launch()
       try {
         for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
@@ -314,6 +334,116 @@ test('Phase 1 against a fresh local PostgreSQL and the production server', { tim
       } finally {
         await browser.close()
       }
+    })
+    await t.test('collector logs partial failures, retries safely, and fences concurrent deliveries', async () => {
+      sql('create role jobflow_collector login; create role jobflow_web login;')
+      postgres('psql', ['-Xq', '-v', 'ON_ERROR_STOP=1', '-h', socket, '-U', 'jobflow_test', '-d', 'postgres',
+        '-f', resolve('ops/neon/grants.sql')])
+      assert.throws(() => sql('select email from public.auth_user', 'jobflow_collector'), /permission denied/)
+      assert.throws(() => sql('select filename from public.resume', 'jobflow_collector'), /permission denied/)
+      assert.throws(() => sql('update jobflow_collection.run set attempt = 123', 'jobflow_web'), /permission denied/)
+
+      const connection = connectDatabase(env.DATABASE_URL.replace('jobflow_test@', 'jobflow_collector@'), 1)
+      const boardConfig = '{"fixture":"Fixture Studio","other":"Other Studio"}'
+      const newRevision = (description) => Response.json({
+        jobs: [{
+          id: 1, title: 'Full Stack Engineer', location: { name: 'Vancouver, BC' },
+          absolute_url: 'https://example.test/fixture/1', content: '<p>' + description + '</p>',
+        }], meta: { total: 1 },
+      })
+      try {
+        const part = await collect(connection.db, { boards: boardConfig, trigger: 'manual', day: '2020-01-01',
+          request: async (url) => url.includes('/other/') ? new Response(null, { status: 404 }) : newRevision('First JD'),
+        })
+        assert.equal(part, 'partial')
+        assert.equal(sql("select status from jobflow_collection.attempt where day = '2020-01-01'"), 'partial')
+        assert.equal(sql("select error from jobflow_collection.board_result where board = 'other'"), 'board_rejected')
+        assert.equal(sql('select count(*) from jobflow_collection.job'), '1')
+        const replay = await collect(connection.db, { boards: boardConfig, trigger: 'manual', day: '2020-01-01',
+          request: async (url) => newRevision(url.includes('/other/') ? 'Other JD' : 'Changed JD'),
+        })
+        assert.equal(replay, 'success')
+        assert.equal(sql("select string_agg(status::text, ',' order by attempt) from jobflow_collection.attempt where day = '2020-01-01'"),
+          'partial,success')
+        assert.equal(sql('select count(*) from jobflow_collection.job'), '2')
+        assert.equal(sql('select count(*) from jobflow_collection.job_snapshot'), '3')
+        assert.equal(await collect(connection.db, { boards: boardConfig, trigger: 'manual', day: '2020-01-01',
+          request: async () => { assert.fail('successful occurrence must not fetch again') } }), 'already_collected')
+
+        const entered = Promise.withResolvers()
+        const release = Promise.withResolvers()
+        const scheduled = { boards: '{"fixture":"Fixture Studio"}', trigger: 'schedule' }
+        const active = collect(connection.db, { ...scheduled,
+          request: async () => { entered.resolve(); await release.promise; return newRevision('First JD') },
+        })
+        try {
+          await Promise.race([entered.promise, active.then(() => assert.fail('expected scheduled request'))])
+          assert.equal(await collect(connection.db, { ...scheduled,
+            request: async () => { assert.fail('concurrent occurrence must not fetch') } }), 'busy')
+        } finally {
+          release.resolve()
+          assert.equal(await active, 'success')
+        }
+        assert.equal(await collect(connection.db, { ...scheduled,
+          request: async () => { assert.fail('duplicate schedule delivery must not fetch') } }), 'already_collected')
+        assert.equal(sql("select string_agg(jd, ',' order by s.revision) from jobflow_collection.job_snapshot s join jobflow_collection.job j on j.id = s.job_id where j.board = 'fixture'"),
+          'First JD,Changed JD,First JD')
+        assert.throws(() => sql("update jobflow_collection.job_snapshot set jd = 'altered'"), /append-only/)
+        assert.throws(() => sql("update jobflow_collection.job_snapshot set jd = 'altered'", 'jobflow_collector'), /permission denied/)
+
+        assert.equal(await collect(connection.db, { ...scheduled, trigger: 'manual', day: '2020-01-02',
+          request: async () => newRevision('First JD') }), 'success')
+        assert.equal(sql('select count(*) from jobflow_collection.job_snapshot'), '4')
+        sql("insert into jobflow_collection.run values ('2020-01-03', 1, 'running', now(), null, now() - interval '1 hour')")
+        sql("insert into jobflow_collection.attempt (day, attempt, trigger, status, started_at) values ('2020-01-03', 1, 'schedule', 'running', now())")
+        assert.equal(await collect(connection.db, { ...scheduled, trigger: 'manual', day: '2020-01-03',
+          request: async () => newRevision('First JD') }), 'success')
+        assert.equal(sql("select error from jobflow_collection.attempt where day = '2020-01-03' and attempt = 1"), 'lease_expired')
+      } finally {
+        await connection.pool.end()
+      }
+    })
+
+    await t.test('restricted web role serves protected collected jobs and keeps PDF unavailable', async () => {
+      await stop(app)
+      await startApp({ DATABASE_URL: env.DATABASE_URL.replace('jobflow_test@', 'jobflow_web@'), JOBFLOW_DISABLE_PDF: '1' })
+      const id = sql("select id from jobflow_collection.job where board = 'fixture'")
+      const path = '/jobs/' + id
+      for (const route of ['/', path]) {
+        assert.equal((await expectStatus(await request(route), 307)).headers.get('location'), '/login')
+      }
+      const health = await expectStatus(await request('/api/health'), 200)
+      assert.deepEqual(await health.json(), { status: 'ok' })
+      const login = await expectStatus(await signIn(email), 200)
+      const session = login.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ')
+      assert.match(await (await expectStatus(await request('/', { session }), 200)).text(), /Fixture Studio/)
+      assert.match(await (await expectStatus(await request(path, { session }), 200)).text(), /First JD/)
+      assert.match(await (await expectStatus(await request('/', { session }), 200)).text(), /PDF storage is unavailable/)
+      await expectStatus(await request('/api/resumes', { session }), 404)
+      await expectStatus(await upload(bytes, 'disabled.pdf', session), 404)
+      await expectStatus(await request('/api/resumes/' + randomUUID(), { session }), 404)
+      await expectStatus(await request('/api/auth/sign-out', { method: 'POST', session, json: {} }), 200)
+    })
+
+    await t.test('database authentication throttle persists across application restarts', async () => {
+      sql('delete from public.auth_rate_limit')
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await expectStatus(await signIn('unknown@example.test'), 401)
+      }
+      await stop(app)
+      await startApp({ DATABASE_URL: env.DATABASE_URL.replace('jobflow_test@', 'jobflow_web@'), JOBFLOW_DISABLE_PDF: '1' })
+      await expectStatus(await signIn('unknown@example.test'), 429)
+    })
+
+    await t.test('Preview fails closed even when configured with a working database URL', async () => {
+      await stop(app)
+      const before = sql('select count(*) from public.auth_session')
+      await startApp({ VERCEL: '1', VERCEL_ENV: 'preview' })
+      await expectStatus(await request('/api/health'), 503)
+      await expectStatus(await signIn(email), 503)
+      assert.equal((await expectStatus(await request('/'), 307)).headers.get('location'), '/login')
+      assert.match(await (await request('/login')).text(), /Sign-in is disabled/)
+      assert.equal(sql('select count(*) from public.auth_session'), before)
     })
   } finally {
     await stop(app)

@@ -1,11 +1,13 @@
 import { findResume, finishResumeDeletion, markResumeForDeletion } from '@jobflow/db/resumes'
 import { json, route } from '../../../../server/http'
+import { pdfEnabled } from '../../../../server/environment'
 import { attachmentName, isResumeId, loadResume, removeResume } from '../../../../server/resumes'
 
 type Context = { params: Promise<{ id: string }> }
 
 export function GET(request: Request, context: Context) {
   return route(async (_request, principal) => {
+    if (!pdfEnabled()) return json({}, 404)
     const { id } = await context.params
     const record = isResumeId(id) ? await findResume(principal, id) : undefined
     if (!record) return json({ error: 'Resume unavailable.' }, 404)
@@ -23,6 +25,7 @@ export function GET(request: Request, context: Context) {
 
 export function DELETE(request: Request, context: Context) {
   return route(async (_request, principal) => {
+    if (!pdfEnabled()) return json({}, 404)
     const { id } = await context.params
     if (!isResumeId(id) || !await markResumeForDeletion(principal, id)) {
       return json({ error: 'Resume unavailable.' }, 404)

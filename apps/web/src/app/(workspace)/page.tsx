@@ -4,11 +4,14 @@ import { currentProfile } from '@jobflow/db/profile'
 import { listResumes } from '@jobflow/db/resumes'
 import { localDate } from '../../features/format'
 import { ResumePanel } from '../../features/resumes/resume-panel'
+import { JobsPanel } from '../../features/jobs/jobs-panel'
+import { pdfEnabled } from '../../server/environment'
 import { pageOwner } from '../../server/page-owner'
 
 export default async function Today() {
   const principal = await pageOwner()
-  const [saved, resumes] = await Promise.all([currentProfile(principal), listResumes(principal)])
+  const uploads = pdfEnabled()
+  const [saved, resumes] = await Promise.all([currentProfile(principal), uploads ? listResumes(principal) : []])
   const profile = saved?.archived ? null : saved
   const preferences = profile?.preferences ?? preferencesDefaults
   return <div className="grid gap-5">
@@ -35,10 +38,12 @@ export default async function Today() {
           <div><dt className="text-muted">Country</dt><dd>{preferences.country}</dd></div>
           <div><dt className="text-muted">Priority location</dt><dd>{preferences.priorityLocation || 'Any'}</dd></div>
           <div><dt className="text-muted">Roles</dt><dd>{preferences.roles.join(', ')}</dd></div>
-          <div><dt className="text-muted">Planned daily collection</dt><dd>{preferences.collectionTime} {preferences.timezone} · Inactive</dd></div>
+          <div><dt className="text-muted">Cloud collection schedule</dt><dd>09:00 Asia/Seoul when enabled</dd></div>
         </dl>
       </section>
     </div>
-    <ResumePanel resumes={resumes.map((resume) => ({ ...resume, createdAt: resume.createdAt.toISOString() }))} />
+    <JobsPanel />
+    {uploads ? <ResumePanel resumes={resumes.map((resume) => ({ ...resume, createdAt: resume.createdAt.toISOString() }))} /> :
+      <p className="text-sm text-muted">PDF storage is unavailable in this deployment.</p>}
   </div>
 }

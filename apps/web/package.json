@@ -2,12 +2,16 @@
   "name": "@jobflow/web",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "26.x"
+  },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "next typegen && tsc --noEmit",
-    "owner:init": "node --env-file-if-exists=../../.env --disable-warning=ExperimentalWarning scripts/owner-init.ts"
+    "owner:init": "node --env-file-if-exists=../../.env --disable-warning=ExperimentalWarning scripts/owner-init.ts",
+    "owner:init:cloud": "node scripts/owner-init.ts --cloud"
   },
   "dependencies": {
     "@jobflow/db": "workspace:*",

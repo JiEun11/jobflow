@@ -4,7 +4,7 @@ const noStore = { 'Cache-Control': 'private, no-store' }
 export const json = (data: unknown, status = 200) => Response.json(data, {
   status,
   // Rejections can return before consuming the body. Do not reuse that connection.
-  headers: status >= 400 ? { ...noStore, Connection: 'close' } : noStore,
+  headers: status >= 400 && process.env.VERCEL !== '1' ? { ...noStore, Connection: 'close' } : noStore,
 })
 
 export class RequestError extends Error {
@@ -19,6 +19,7 @@ export function route(
 ) {
   return async (request: Request) => {
     try {
+      if (process.env.VERCEL_ENV === 'preview') return json({}, 503)
       if (mutation && request.headers.get('origin') !== appOrigin()) {
         return json({ error: 'Origin is not allowed.' }, 403)
       }
