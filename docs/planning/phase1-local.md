@@ -51,11 +51,8 @@ Back up the PostgreSQL database and private PDF directory together while writes 
 ## Verification
 
 ```sh
-pnpm typecheck
-pnpm lint
-NEXT_TELEMETRY_DISABLED=1 pnpm build
 PLAYWRIGHT_BROWSERS_PATH=0 pnpm exec playwright install chromium --only-shell
-PLAYWRIGHT_BROWSERS_PATH=0 JOBFLOW_TEST_PG_BIN=/opt/homebrew/opt/postgresql@18/bin pnpm test
+NEXT_TELEMETRY_DISABLED=1 PLAYWRIGHT_BROWSERS_PATH=0 JOBFLOW_TEST_PG_BIN=/opt/homebrew/opt/postgresql@18/bin pnpm verify
 ```
 
-Tests use a disposable PostgreSQL cluster, a local production server, and synthetic fixtures. Set `JOBFLOW_TEST_PG_BIN` to the PostgreSQL 18 binary directory or use the binaries on PATH.
+The verification command runs lint, strict type checking, a production build and the integration suite in that order. A failing stage stops the remaining stages. Tests create a disposable PostgreSQL cluster on a private Unix socket and start the production server on an available loopback port. Test data is synthetic. Set `JOBFLOW_TEST_PG_BIN` to the PostgreSQL 18 binary directory or omit it when the binaries are on PATH. GitHub Actions uses the stock PostgreSQL 18 binaries on Ubuntu 26.04 and starts its own isolated cluster.

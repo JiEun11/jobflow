@@ -1,6 +1,6 @@
 # Product requirements
 
-**Status:** Proposed · **Date:** 2026-11-05
+**Status:** Phase 1 baseline approved. Later integrations are planned.
 
 ## 1. Problem and intended user
 
@@ -12,8 +12,9 @@ The initial user runs a private single-owner instance. The public project should
 
 | Requirement | Status |
 | --- | --- |
-| Discover suitable jobs on a daily configurable schedule | Requested; exact time and execution host undecided |
-| Use a base resume to analyze job descriptions | Requested; resume and target criteria not yet supplied |
+| Discover suitable jobs on a daily configurable schedule | Phase 2; default 09:00 Asia/Seoul. Execution host and missed-run policy remain open. |
+| Search across Canada with Vancouver, British Columbia prioritized | Phase 1 default; Full Stack Developer and Frontend / React Developer |
+| Use a base resume to analyze job descriptions | Planned; Phase 1 stores private PDF uploads and separately editable, recoverable profile revisions. |
 | Produce application-specific resumes/CVs | Requested; automatic generation for all candidates versus selection-first remains open |
 | Assess visa sponsorship evidence | Requested; target countries and visa constraints undecided |
 | Track progress from email in a dashboard | Requested; mailbox provider and account access undecided |
@@ -21,7 +22,7 @@ The initial user runs a private single-owner instance. The public project should
 | Use TypeScript and Next.js-oriented frontend/backend architecture | Requested by the latest design instruction |
 | English repository documentation and Korean user discussion | Confirmed |
 | Orca as the development IDE; `JiEun11/jobflow` as the repository | Confirmed |
-| Local-first self-hosted, one owner, PostgreSQL and separate worker | Proposed architecture, awaiting review |
+| Local-first self-hosted, one owner, PostgreSQL | Phase 1 implemented; separate durable worker is a Phase 2 proposal. |
 | Selection-first document generation | Recommended default, not an accepted reduction of the requested all-job capability |
 | English-first UI with later locale support | Proposed; documentation language does not determine UI language |
 
@@ -95,8 +96,8 @@ Archiving is an independent `archivedAt` property. Collected-job status, documen
 | PR-13 | The repository, sample mode, logs, test fixtures, and screenshots contain no real career, mailbox, or credential data. |
 | PR-14 | A fresh contributor can follow one verified local setup path without a particular AI editor or ChatGPT connection. |
 
-These criteria define release evidence to collect later; none is presented as a test already passed.
+These are product-level release criteria. For Phase 1 coverage, see [the runnable integration suite](../../tests/phase1.test.mjs).
 
 ## 7. Decisions still needed
 
-Before the relevant implementation slice, confirm target roles/countries/seniority, hard sponsorship requirements, mailbox provider, AI provider and spending limit, generation scope, UI locale, daily time/timezone, local versus always-on operation, and the intended open-source license. Architecture review can proceed without personal resume content or account access.
+See the [roadmap](../planning/implementation-plan.md) for open choices and their dependent slices.

@@ -1,6 +1,6 @@
 # ADR 0003: Keep private data outside Git and require explicit identity
 
-- **Status:** Proposed
+- **Status:** Accepted for Phase 1 identity and storage. Provider token storage is planned.
 - **Date:** 2026-11-05
 
 ## Context
@@ -11,7 +11,7 @@ The project is intended for public source distribution while processing resumes,
 
 Keep code and synthetic examples in the repository. Store records in PostgreSQL, artifacts in a private data directory outside the checkout, and credentials through a server-only encrypted credential adapter. Supply encryption material through protected runtime configuration, separately from ordinary database backups.
 
-Require an explicit owner bootstrap and session even for a loopback-bound local installation. Close registration after the first owner is provisioned. Prefer a reviewed Better Auth session adapter, subject to validating its Next.js integration, deployment configuration, and migration ownership in the foundation slice. Do not create a homemade authentication protocol.
+Require an explicit CLI owner bootstrap and a Better Auth session even for a loopback-bound local installation. The web surface leaves registration disabled throughout the owner lifecycle.
 
 Treat mailbox OAuth as a separate owner-bound connection using only the permissions required to read relevant messages. Every transport and application operation authorizes records by owner; workers validate durable owner-scoped inputs. Exposing the app beyond loopback requires the reviewed authenticated HTTPS deployment path.
 

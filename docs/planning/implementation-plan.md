@@ -1,66 +1,27 @@
-# Implementation plan and review gates
+# Roadmap
 
-**Status:** Proposed · **Date:** 2026-11-05
+The [requirements](../product/requirements.md) define acceptance criteria. Only the local Phase 1 app is implemented. A new external connection, scheduled run, deployment, or publication requires owner authorization.
 
-## 1. Current boundary
+| Slice | Scope and exit evidence |
+| --- | --- |
+| Phase 1 · Local foundation | Owner session, structured versioned profile, private PDF, dashboard. The [runbook](phase1-local.md) links the verification commands. |
+| Phase 2 · Discovery and scheduling | Manual JD intake and one approved ATS adapter. Prove a synthetic durable task before live collection. Validate deduplication, checkpoint replay, failure isolation, missed runs, budgets and cancellation. |
+| Career intake and analysis | Extract facts into a review queue when a parsing path is approved. Pin profile and JD revisions. Verify claim grounding, conflicting sponsorship evidence and stale-result handling. |
+| Documents and applications | Produce editable drafts and optional cover letters, verify PDF/DOCX text order and layout, and pin the exact approved or submitted package. Track application state separately. |
+| Mail and release | Choose one read-only OAuth provider, prove ambiguous matches and revocation, then rehearse backup/restore, retention, export and release. |
 
-The approved Phase 1 app provides single-owner authentication, versioned career profiles, private PDF uploads, and a dashboard. The [local runbook](phase1-local.md) documents setup and verification. External integrations, live schedules, deployment, and publication require separate approval.
+## Phase 2 contracts to validate
 
-All proposed architecture decisions remain open for review. This plan is ordered by working product slices, rather than creating every package and empty feature folder at once.
+- **Source identity** uses provider, board and posting ID. Keep original and canonical URLs. Persist each observed page with its cursor. Store immutable JD snapshots keyed by content digest. A failed or partial scan cannot close postings.
+- **Work acceptance** persists a request and outbox entry before dispatch. The manual trigger and scheduler submit the same command. Version payloads, use logical idempotency keys for replays, persist step results, and expose partial success. Test crashes before and after publication and result commit. Honour provider limits, stop new paid work on budget exhaustion, and treat ambiguous paid calls as uncertain.
+- **Scheduling** stores the timezone and local time, with one logical key per occurrence. Demonstrate recovery and visible last attempt, last success, and next occurrence. Choose the first source and employer list, execution host, and missed-run policy before activation. Greenhouse is a candidate per-employer source. Lever and Ashby are candidates for later adapters. [Greenhouse API](https://docs.greenhouse.io/job-board) · [Lever API](https://github.com/lever/postings-api) · [Ashby API](https://developers.ashbyhq.com/docs/public-job-posting-api)
 
-## 2. Delivery slices
+## Later design boundaries
 
-| Slice | Scope | Evidence required to complete it |
-| --- | --- | --- |
-| D0 — Design review | Requirements, experience, architecture, data model, privacy, ADRs | Owner reviews the proposed direction and confirms the first implementation scope |
-| D1 — Phase 1 local foundation | Local web app, PostgreSQL, owner session, versioned profile, private PDF, dashboard | Verify the owner, profile, and PDF workflows with synthetic data |
-| D2 — Career facts and manual JD | Supported resume import, review/confirm facts, immutable profile/JD versions, source provenance | A synthetic candidate can correct extraction; unconfirmed facts cannot silently become evidence; a changed JD preserves the previous snapshot |
-| D3 — Analysis and document review | One chosen AI adapter, requirement mapping, scoped visa evidence, editable document draft and optional cover letter | Unsupported claims enter review; schema/fact checks run independently of model text; regenerating preserves earlier edits and inputs |
-| D4 — Exports and application records | Verified PDF/DOCX renderers, document approval/version history, explicit submitted package, application timeline | Export text and visual layout pass QA; the file recorded as submitted remains identifiable after regeneration |
-| D5 — Discovery and durable scheduling | One ATS board adapter, target-board configuration, source cursor, daily schedule, budgets, cancellation and recovery | Duplicate and interrupted collection creates no duplicate posting; one failed source yields partial success; timezone and missed-run policy are demonstrated |
-| D6 — Mail-driven tracking | One selected read-only mailbox adapter, incremental sync, message deduplication, event matching and review | Two roles at one company remain distinct; ambiguous and older events cannot overwrite a user correction; revoked consent stops only the affected integration |
-| D7 — Self-hosting and open-source readiness | Container path, backup/restore, retention/delete/export, setup documentation, licensing and contributor materials | A fresh setup and a restore drill succeed; public artifacts contain synthetic data only; owner approves release readiness |
+Pin source revisions and confirmed supporting facts to each analysis and generated document. A changed input marks dependent work stale. A new edit requires fresh approval without changing prior approvals or the package actually submitted. Use source-scoped evidence for sponsorship. Store worker, application, document-review, posting, and mail-link states independently.
 
-Phase 2 must prove a real durable task using synthetic data before scheduled collection, AI, or mailbox work. This tests the architectural seam early without waiting for private credentials. D3 can be designed with a deterministic fake adapter for tests; the UI must clearly state when a real AI provider is unavailable and must never show fake live results.
+Mail sync uses provider-scoped message IDs and atomic cursor checkpoints. Match by requisition or job and thread evidence, send uncertainty to review, and preserve user corrections against delayed messages. Use provider references and minimal excerpts by default. Validate OAuth scope and consent requirements before distribution.
 
-## 3. Decisions required before their dependent slice
+Keep performance and accessibility checks on the real user path. On mobile, retain explicit navigation and full-page detail views. Show empty, failure, and partial states distinctly. Use synthetic fixtures until real-data processing is authorized. Begin a real-data pilot with a user-selected small batch and manually verify source claims before widening automation.
 
-| Decision | Recommendation or options | Needed by |
-| --- | --- | --- |
-| Architecture baseline | All-TypeScript Next.js web + Node worker + PostgreSQL | D1 |
-| Initial execution profile | Local development first; choose an always-on host if laptop-off execution is required | D1 for setup assumptions; D5 for unattended guarantees |
-| Auth/session implementation | Better Auth is the preferred proposal; review bootstrap and closed-registration behavior | D1 |
-| Exact dependency versions | Pin compatible stable releases; inspect advisories and licenses; record Node/PostgreSQL compatibility | D1 |
-| Target roles, countries, seniority, work arrangement | User-supplied criteria; no invented default profession or location | D2/D5 |
-| Sponsorship constraints | Essential versus preferred, and countries/routes to investigate | D3 |
-| Document language and output types | Resume/CV/cover letter choices and intended markets | D3/D4 |
-| First AI provider/model and spending cap | One adapter initially; show what data is sent externally | D3 |
-| Generation scope | Manual, shortlisted, or all eligible discovered jobs; selection-first is recommended but unapproved | D3/D5 |
-| UI locale and writing voice | English-first is proposed; Korean UI and user writing examples remain open | D1/D3 |
-| Daily time, timezone, limits, catch-up behavior | User-selected local time; timezone explicit in UI and stored as IANA zone | D5 |
-| First mailbox provider and account | Gmail or Outlook after user selection; exact read scopes and consent requirements reviewed | D6 |
-| License and project release policy | Owner chooses before announcing an open-source release | D7 |
-
-An unresolved choice blocks only its dependent work, not unrelated approved documentation or implementation. Architecture approval does not authorize reading email or uploading a resume to an external model without the applicable account setup and informed configuration.
-
-## 4. Foundation detail
-
-After approval, create only the packages needed by D1, with real exports and enforced dependency boundaries. Pin the package manager and runtime, commit the lockfile, and define documented scripts for development, type checking, linting, tests, build, migration, and worker startup.
-
-The foundation must specify separate migration ownership for application tables and the queue system, a private data path outside the checkout, and a single owner bootstrap flow. Local setup includes PostgreSQL through a reproducible container configuration, plus an existing-database option. Do not require a particular IDE or paid platform connection.
-
-Before exposing a non-loopback instance, finish the authentication/origin/TLS deployment checks. Before using a source or provider, verify its current API, required permissions, and account availability. Do not prebuild unused providers or a general plugin framework.
-
-## 5. Change and migration policy
-
-Use reviewed, additive migration files. Test both a fresh database and an upgrade from the previous supported schema. Applied migrations are immutable. Destructive data transformations need a separate migration plan, backup, and recovery procedure.
-
-Version serialized task payloads. A new worker must either support in-flight payload versions or drain them deliberately before deployment. Schema and provider changes must not reinterpret historical document provenance or application events.
-
-Keep architecture documents aligned with changed implementation decisions. If an ADR is rejected or superseded, retain its context and link to the replacement. Update the README when a capability changes from planned to available, and provide the evidence rather than simply removing the design disclaimer.
-
-## 6. Completion standards
-
-Each slice delivers a user-visible workflow, relevant failure states, privacy boundaries, focused tests, and updated documentation. Avoid claiming operational readiness from a successful build alone. Use the [quality strategy](quality-strategy.md) and the acceptance IDs in [requirements](../product/requirements.md).
-
-The first real-data pilot should be a small, manually checked set of user-chosen jobs. Compare recommendations and documents against the original sources before enabling wider scheduled processing. Daily automation is enabled only after its sources, write path, limits, and restart behavior have been exercised.
+Open decisions include seniority/work arrangement, sponsorship requirements, AI provider and spending cap, generation scope, mailbox provider, UI and document language, retention, and license. Settle each before its dependent slice.

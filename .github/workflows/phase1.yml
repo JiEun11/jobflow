@@ -1,0 +1,35 @@
+name: Phase 1 verification
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      PLAYWRIGHT_BROWSERS_PATH: '0'
+      JOBFLOW_TEST_PG_BIN: /usr/lib/postgresql/18/bin
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Install pinned dependencies
+        run: |
+          npm install --global "$(node -p 'require("./package.json").packageManager')"
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install Chromium and its OS dependencies
+        run: pnpm exec playwright install --with-deps chromium --only-shell
+      - name: Verify app with a disposable PostgreSQL cluster
+        run: |
+          "$JOBFLOW_TEST_PG_BIN/initdb" --version
+          pnpm verify
